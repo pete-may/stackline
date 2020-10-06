@@ -159,7 +159,7 @@ function M:validate(conf) -- {{{
         local invalidKeys = table.concat(u.keys(u.flatten(err)), ", ")
         hs.notify.new(nil, {
             title           = 'Invalid stackline config!',
-            subTitle        =  'invalid keys:' .. invalidKeys,
+            subTitle        = 'invalid keys:' .. invalidKeys,
             informativeText = 'Please refer to the default conf file.',
             withdrawAfter   = 10
         }):send()
