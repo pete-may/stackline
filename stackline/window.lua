@@ -1,6 +1,8 @@
 local u = require 'stackline.lib.utils'
 local Window = {}
 
+
+
 function Window:new(hsWin) -- {{{
     local stackIdResult = self:makeStackId(hsWin)
     local ws = {
@@ -12,7 +14,6 @@ function Window:new(hsWin) -- {{{
         topLeft    = stackIdResult.topLeft,      -- "{{x}|{y}" e.g., "35|63" (string)
         stackIdFzy = stackIdResult.fzyFrame,     -- "{{x}|{y}" e.g., "35|63" (string)
         _win       = hsWin,                      -- hs.window object (table)
-        screen     = hsWin:screen():id(),
         indicator  = nil,                        -- the canvas element (table)
     }
     setmetatable(ws, self)

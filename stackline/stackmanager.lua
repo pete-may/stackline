@@ -15,24 +15,30 @@ function Stackmanager:update() -- {{{
     return self
 end -- }}}
 
-function Stackmanager:ingest(windowGroups, appWindows, shouldClean) -- {{{
-    local stacksCount = u.length(windowGroups)
-    if shouldClean or (stacksCount == 0) then
-        self:cleanup()
-    end
+function assignToWindow(stack, appWindows)  -- {{{
+    -- Given stack & appWindows, return fn to map over
+    -- all windows & assign stack & other app windows.
+    return function(win)
+        -- assigning stack enables calling stack methods from window
+        win.stack = stack
 
-    for stackId, groupedWindows in pairs(windowGroups) do
-        local stack = Stack:new(groupedWindows) -- instantiate new instance of Stack()
-        stack.id = stackId
-        u.each(stack.windows, function(win)
-            -- win.otherAppWindows needed to workaround Hammerspoon issue #2400
-            win.otherAppWindows = u.filter(appWindows[win.app], function(w)
-                -- exclude self and other app windows from other others
-                return (w.id ~= win.id) and (w.screen == win.screen)
-            end)
-            -- TODO: fix error with nil stack field (??): window.lua:32: attempt to index a nil value (field 'stack')
-            win.stack = stack -- enables calling stack methods from window
+        -- win.otherAppWindows needed to workaround Hammerspoon issue #2400
+        win.otherAppWindows = u.filter(appWindows[win.app], function(w)
+            return w.id ~= win.id -- exclude self
         end)
+    end
+end  -- }}}
+
+function Stackmanager:ingest(windowGroups, appWindows, shouldClean) -- {{{
+    self:cleanup()
+    for stackId, groupedWindows in pairs(windowGroups) do
+        -- instantiate new instance of Stack()
+        local stack = Stack:new(groupedWindows)
+        stack.id = stackId
+        u.each(
+            stack.windows,
+            assignToWindow(stack, appWindows)
+        )
         table.insert(self.tabStacks, stack)
         self:resetAllIndicators()
     end
@@ -110,7 +116,7 @@ end -- }}}
 
 function Stackmanager:getClickedWindow(point) -- {{{
     -- given the coordinates of a mouse click, return the first window whose
-    -- indicator element encompasses the point, or nil if none.    
+    -- indicator element encompasses the point, or nil if none.
     for _stackId, stack in pairs(self.tabStacks) do
         local clickedWindow = stack:getWindowByPoint(point)
         if clickedWindow then

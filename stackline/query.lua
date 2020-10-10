@@ -1,23 +1,11 @@
 local u = require 'stackline.lib.utils'
-local c = stackline.config:get()
+local log = hs.logger.new('stackline', 'info')
+
+log.i("Loading module")
 
 local Query = {}
 
-function Query:getWinStackIdxs(onSuccess) -- {{{
-    -- TODO: Consider coroutine (allows HS to do other work while waiting for yabai)
-    --       https://github.com/koekeishiya/yabai/issues/502#issuecomment-633378939
-    hs.task.new("/bin/sh", function(_code, stdout, _stderr)
-        -- call out to yabai to get stack-indexes
-        local ok, json = pcall(hs.json.decode, stdout)
-        if ok then
-            onSuccess(json)
-        else -- try again
-            hs.timer.doAfter(1, function() self:getWinStackIdxs() end)
-        end
-    end, {c.paths.getStackIdxs}):start()
-end -- }}}
-
-function getStackedWinIds(byStack)  -- {{{
+local function pluckWindowIds(byStack)  -- {{{
     stackedWinIds = {}
     for _, group in pairs(byStack) do
         for _, win in pairs(group) do
@@ -27,38 +15,52 @@ function getStackedWinIds(byStack)  -- {{{
     return stackedWinIds
 end  -- }}}
 
-function Query:groupWindows(ws) -- {{{
-    -- Given windows from hs.window.filter: 
-    --    1. Create stackline window objects
-    --    2. Group wins by `stackId` prop (aka top-left frame coords) 
-    --    3. If at least one such group, also group wins by app (to workaround hs bug unfocus event bug)
-    local byStack
-    local byApp
-
-    local windows = u.map(ws, function(w)
-        return stackline.window:new(w)
-    end)
-
-    -- See 'stackId' def @ /window.lua:233
-    local groupKey = c.features.fzyFrameDetect.enabled
-                        and 'stackIdFzy' 
+local function groupByStack(ws)  -- {{{
+    -- stackline windows -> groupedByStack
+    local groupKey = stackline.config:get('features.fzyFrameDetect.enabled')
+                        and 'stackIdFzy'
                         or 'stackId'
+    return u.filter(
+        u.groupBy(ws, groupKey),
+        u.greaterThan(1)
+    )
+end  -- }}}
 
-    byStack = u.filter(
-                u.groupBy(windows, groupKey), 
-                u.greaterThan(1))  -- stacks have >1 window, so ignore 'groups' of 1
+function ungroupStacks(byStack, windows)  -- {{{
+    if u.length(byStack) == 0 then return {} end
+    local stackedWinIds = pluckWindowIds(byStack)
+    return u.filter(windows, function(w)
+        return stackedWinIds[w.id]   --true if win id is in stackedWinIds
+    end)
+end  -- }}}
 
-    if u.length(byStack) > 0 then
-        local stackedWinIds = getStackedWinIds(byStack)
-        local stackedWins = u.filter(windows, function(w)
-            return stackedWinIds[w.id] --true if win id is in stackedWinIds
-        end)
+function Query:getWinStackIdxs(onSuccess) -- {{{
+    -- TODO:Consider coroutine (allows HS to do other work while waiting for yabai)
+    --      https://github.com/koekeishiya/yabai/issues/502#issuecomment-633378939
 
-        byApp = u.groupBy(stackedWins, 'app') -- app names are keys in group
-    end
+    -- call out to yabai to get stack-indexes
+    hs.task.new("/bin/sh", function(_code, stdout, _stderr)
+        local ok, json = pcall(hs.json.decode, stdout)
+        if ok then
+            onSuccess(json)
+        else -- try again
+            hs.timer.doAfter(1, function() self:getWinStackIdxs() end)
+        end
+    end, {c.paths.getStackIdxs}):start()
+end -- }}}
 
-    self.stacks = byStack
-    self.appWindows = byApp
+function Query:groupWindows(windows) -- {{{
+    -- Given stackline window objects
+    --    1. Create stackline window objects
+    --    2. Group wins by `stackId` prop (aka top-left frame coords)
+    --    3. If at least one such group, also group wins by app (to workaround hs bug unfocus event bug)
+
+    log.d('windows input to query:groupWindows()', hs.inspect(windows))
+
+    self.stacks = groupByStack(windows)
+    local unstacked = ungroupStacks(self.stacks, windows)
+    self.appWindows = u.groupBy(unstacked, 'app') -- app names are keys in group
+    return self
 end -- }}}
 
 function Query:removeGroupedWin(win) -- {{{
@@ -70,31 +72,30 @@ function Query:removeGroupedWin(win) -- {{{
     end)
 end -- }}}
 
-function Query:mergeWinStackIdxs() -- {{{
-    -- merge windowID <> stack-index mapping queried from yabai into window objs
+function assignStackIndex(winStackIdxs)  -- {{{
+    return function(win)
+        local stackIdx = winStackIdxs[tostring(win.id)]
 
-    function assignStackIndex(win)
-        local stackIdx = self.winStackIdxs[tostring(win.id)]
+        -- Remove windows with stackIdx == 0. Such windows overlap exactly with
+        -- other (potentially stacked) windows, and so are grouped with them,
+        -- but they are NOT stacked according to yabai.
+        -- Windows that belong to a *real* stack have stackIdx > 0.
+        if stackIdx == 0 then self:removeGroupedWin(win) end
 
-        if stackIdx == 0 then
-            -- Remove windows with stackIdx == 0. Such windows overlap exactly with
-            -- other (potentially stacked) windows, and so are grouped with them,
-            -- but they are NOT stacked according to yabai. 
-            -- Windows that belong to a *real* stack have stackIdx > 0.
-            self:removeGroupedWin(win)
-        end
-
-        -- set the stack idx 
+        -- set the stack idx
         win.stackIdx = stackIdx
     end
+end  -- }}}
 
+function Query:mergeWinStackIdxs(winStackIdxs) -- {{{
+    -- merge windowID <> stack-index mapping queried from yabai into window objs
     u.each(self.stacks, function(stack)
-        u.each(stack, assignStackIndex)
+        u.each(stack, assignStackIndex(winStackIdxs))
     end)
 
 end -- }}}
 
-function shouldRestack(new) -- {{{
+local function shouldRestack(new) -- {{{
     -- Analyze self.stacks to determine if a stack refresh is needed
     --  • change num stacks (+/-)
     --  • changes to existing stack
@@ -107,14 +108,10 @@ function shouldRestack(new) -- {{{
     if curr.numStacks ~= new.numStacks then
         print('num stacks changed')
         return true
-    end
-
-    if not u.equal(curr.topLeft, new.topLeft) then
+    elseif not u.equal(curr.topLeft, new.topLeft) then
         print('position changed')
         return true
-    end
-
-    if not u.equal(curr.numWindows, new.numWindows) then
+    elseif not u.equal(curr.numWindows, new.numWindows) then
         print('num windows changed')
         return true
     end
@@ -122,21 +119,26 @@ function shouldRestack(new) -- {{{
     print('Should not redraw.')
 end -- }}}
 
+function Query:whenStackIdxDone(winStackIndexes)  -- {{{
+    -- Add the stack indexes from yabai to the hs window data
+    self:mergeWinStackIdxs(winStackIndexes)
+
+    -- hand over to the Stack module
+    stackline.manager:ingest(
+        self.stacks,
+        self.appWindows
+    )
+end  -- }}}
+
 function Query:windowsCurrentSpace() -- {{{
-    self:groupWindows(stackline.wf:getWindows()) -- set self.stacks & self.appWindows
+    -- set self.stacks & self.appWindows
+    self:groupWindows(stackline:getWindows())
 
-    local extantStacks       = stackline.manager:get()
-    local extantStackSummary = stackline.manager:getSummary()
-    local extantStackExists  = extantStackSummary.numStacks > 0
-    local shouldRefresh      = (extantStackExists and shouldRestack(self.stacks, extantStacks)) or true
-
-    if shouldRefresh then
-        function whenStackIdxDone(yabaiRes)
-            self.winStackIdxs = yabaiRes
-            self:mergeWinStackIdxs() -- Add the stack indexes from yabai to the hs window data
-            stackline.manager:ingest(self.stacks, self.appWindows, extantStackExists) -- hand over to the Stack module
-        end
-        self:getWinStackIdxs(whenStackIdxDone) -- set self.winStackIdxs (async shell call to yabai)
+    if shouldRestack(self.stacks) then
+        -- set self.winStackIdxs (async shell call to yabai)
+        self:getWinStackIdxs(function(r)
+            Query:whenStackIdxDone(r)
+        end)
     end
 end -- }}}
 
