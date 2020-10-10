@@ -4,3 +4,4 @@ stackline/sratch.md
 
 lib/enum.lua
 lib/figlet.lua
+luacov.stats.out

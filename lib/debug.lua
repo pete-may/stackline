@@ -21,7 +21,7 @@ local json = require 'stackline.lib.json'
 hs.console.consoleFont({name = 'Operator Mono', size = 12})
 
 local function size(n)  -- {{{
-    hs.console.consoleFont({size = n})
+    hs.console.consoleFont({size = n, name = 'Operator Mono'})
 end  -- }}}
 
 local function colorize(bg, fg)  -- {{{
@@ -183,7 +183,7 @@ local function toJson(i) -- {{{
 end -- }}}
 
 function shouldInspect(input)  -- {{{
-    local skipIfContains = {'%s', 'help'}
+    local skipIfContains = {'%s', 'help', 'test()'}
     for _, v in pairs(skipIfContains) do
         if input:find(v) then return false end
     end

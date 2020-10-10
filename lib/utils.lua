@@ -192,15 +192,13 @@ function utils.identity(value) -- {{{
 end -- }}}
 
 function utils.invoke(instance, name, ...) -- {{{
-    -- FIXME: This doesn't work, but it seems like it should
-    --        attempt to index a nil value (local 'instance')
-    return function(instance, ...)
+    return function(...)
         if instance[name] then
             instance[name](instance, ...)
         end
     end
 end -- }}}
-utils.cb = utils.invoke -- shorter u.cb alias for u.invoke
+utils.mcb = utils.invoke -- memnonic: method callback
 
 function utils.cb(fn) -- {{{
     return function()
@@ -548,6 +546,29 @@ function utils.partial(f, ...) -- {{{
         return f(unpack(a, 1, a_len + tmp_len))
     end
 end -- }}}
+
+function utils.pipe(...)  -- {{{
+  -- FROM: https://github.com/EvandroLG/pipe.lua
+  --[[ 
+    function exclamation(str)
+      return str .. '!'
+    end
+
+    local wrapped = pipe(string.upper, exclamation)
+    wrapped('Lua is nice') -- LUA IS NICE!
+   ]]
+  local arg = {...}
+
+  return function(...)
+    local result = nil
+
+    for _, fn in ipairs(arg) do
+      result = fn(result == nil and ... or result)
+    end
+
+    return result
+  end
+end  -- }}}
 
 function utils.levenshteinDistance(str1, str2) -- {{{
     local str1, str2 = str1:lower(), str2:lower()
