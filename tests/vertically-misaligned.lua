@@ -1,5 +1,5 @@
 
---[[
+--[[ {{{
 Problem ------------------------------------------------------------------------
 Icons are positioned relative to the window frame.
 Some windows have size constraints (iterm), so stackline uses fuzzy frame detection
@@ -42,11 +42,10 @@ Example:
         y = 92.4
       },
 
---]]
+-- }}} ]]
 
 
-
-local config = {
+local config = {  -- {{{
   alpha = 1,
   color = {
     alpha = 1,
@@ -67,17 +66,17 @@ local config = {
   showIcons = true,
   size = 32,
   vertSpacing = 1.2
-}
+}  -- }}}
 
 
-local output = {
+local stackOutputBad = {  -- {{{
   id = "780|30|900|1020",
   windows = { {
-      _win = '<userdata 10>' -- hs.window: ~ — fish (0x6000037eb8b8),
+      _win = '<userdata 10>'   -- hs.window: ~ — fish (0x6000037eb8b8),
       app = "kitty",
       config = '<table 2>',
       focus = true,
-      frame = { -- hs.geometry.rect(805.0,48.0,921.0,1042.0)
+      frame = {   -- hs.geometry.rect(805.0,48.0,921.0,1042.0)
         _h = 1042.0,
         _w = 921.0,
         _x = 805.0,
@@ -92,7 +91,7 @@ local output = {
         y = 54.0
       },
       id = 444437,
-      indicator = '<userdata 2>' -- hs.canvas: {{0, 0}, {1792, 1120}} (0x6000037c72b8),
+      indicator = '<userdata 2>'   -- hs.canvas: {{0, 0}, {1792, 1120}} (0x6000037c72b8),
       indicator_rect = {
         h = 32,
         w = 32,
@@ -105,8 +104,8 @@ local output = {
           id = 450887,
         } },
       rectIdx = 1,
-      screen = '<userdata 9>' -- hs.screen: Color LCD (0x6000037f0038),
-      screenFrame = { -- hs.geometry.rect(0.0,0.0,1792.0,1120.0)
+      screen = '<userdata 9>'   -- hs.screen: Color LCD (0x6000037f0038),
+      screenFrame = {   -- hs.geometry.rect(0.0,0.0,1792.0,1120.0)
         _h = 1120.0,
         _w = 1792.0,
         _x = 0.0,
@@ -123,11 +122,11 @@ local output = {
       topLeft = "805|48",
       width = 32
     }, {
-      _win = '<userdata 10>' -- hs.window: ~ — fish (0x6000037eb8b8),
+      _win = '<userdata 10>'   -- hs.window: ~ — fish (0x6000037eb8b8),
       app = "iTerm2",
       config = '<table 2>',
       focus = false,
-      frame = { -- hs.geometry.rect(805.0,48.0,916.0,1028.0)
+      frame = {   -- hs.geometry.rect(805.0,48.0,916.0,1028.0)
         _h = 1028.0,
         _w = 916.0,
         _x = 805.0,
@@ -142,7 +141,7 @@ local output = {
         y = 92.4
       },
       id = 450902,
-      indicator = '<userdata 11>' -- hs.canvas: {{0, 0}, {1792, 1120}} (0x6000037d96b8),
+      indicator = '<userdata 11>'   -- hs.canvas: {{0, 0}, {1792, 1120}} (0x6000037d96b8),
       indicator_rect = {
         h = 32,
         w = 32,
@@ -151,8 +150,8 @@ local output = {
       },
       otherAppWindows = {},
       rectIdx = 1,
-      screen = '<userdata 12>' -- hs.screen: Color LCD (0x6000037dc238),
-      screenFrame = { -- hs.geometry.rect(0.0,0.0,1792.0,1120.0)
+      screen = '<userdata 12>'   -- hs.screen: Color LCD (0x6000037dc238),
+      screenFrame = {   -- hs.geometry.rect(0.0,0.0,1792.0,1120.0)
         _h = 1120.0,
         _w = 1792.0,
         _x = 0.0,
@@ -169,4 +168,7 @@ local output = {
       topLeft = "805|48",
       width = 32
     } }
-}
+}  -- }}}
+
+
+
