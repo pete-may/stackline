@@ -51,11 +51,7 @@ M.types = { -- {{{
     },
 } -- }}}
 
-local defaultOnChangeEvt = {    -- {{{
-    __index = function() stackline.queryWindowState:start() end
-}  -- }}}
-
-M.events = setmetatable({ -- {{{
+M.events = { -- {{{
     appearance = {
         onChange = function() stackline.manager:resetAllIndicators() end,
     },
@@ -69,7 +65,13 @@ M.events = setmetatable({ -- {{{
     advanced = {
         maxRefreshRate    = function() print('Needs implemented') end,
     },
-}, defaultOnChangeEvt) -- }}}
+} 
+
+-- set default onChange event to refresh everything
+setmetatable(M.events,{
+    __index = function() stackline.queryWindowState:start() end
+})
+-- }}}
 
 M.schema = { -- {{{
     paths = {
@@ -109,11 +111,11 @@ M.schema = { -- {{{
 
 function M:getPathSchema(path) -- {{{
     local _type = u.getfield(path, self.schema) -- lookup type in schema
-    if not _type then
-        return false
+    if _type then
+        local validator = self.types[_type].validator()
+        return _type, validator
     end
-    local validator = self.types[_type].validator()
-    return _type, validator
+    return false -- if _type not found
 end -- }}}
 
 function M.generateValidator(schemaType) -- {{{
@@ -317,6 +319,5 @@ function M:handleMsg(msg) -- {{{
 
     return "ok"
 end -- }}}
-
 
 return M
