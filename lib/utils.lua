@@ -135,6 +135,11 @@ function utils.iter(list_or_iter) -- {{{
     end)
 end -- }}}
 function utils.values(t) -- {{{
+    local ttype = type(t)
+    if ttype ~= 'table' then
+      log.w('utils.length expects 1st arg to be a table, got:', ttype)
+      return {}
+    end
     local values = {}
     for _k, v in pairs(t) do
         values[#values + 1] = v
@@ -268,6 +273,11 @@ function utils.max(t, transform) -- {{{
 end -- }}}
 
 utils.length = function(t) -- {{{
+    local ttype = type(t)
+    if ttype ~= 'table' then
+      log.w('utils.length expects 1st arg to be a table, got:', ttype)
+      return 0
+    end
     local count = 0
     for _ in pairs(t) do
         count = count + 1
@@ -420,6 +430,11 @@ end -- }}}
 
 function utils.groupBy(t, f) -- {{{
     -- FROM: https://github.com/pyrodogg/AdventOfCode/blob/1ff5baa57c0a6a86c40f685ba6ab590bd50c2148/2019/lua/util.lua#L149
+    local ttype = type(t)
+    if ttype ~= 'table' then
+      log.w('utils.groupBy expects 1st arg to be a table, got:', ttype)
+      return {}
+    end
     local res = {}
     for _k, v in pairs(t) do
         local g
